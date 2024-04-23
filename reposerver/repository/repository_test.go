@@ -2208,6 +2208,47 @@ func TestGenerateManifestWithAnnotatedTagsAndMultiSourceApp(t *testing.T) {
 	}
 }
 
+func TestGenerateMultiSourceHelmWithFileParameter(t *testing.T) {
+
+	expectedFileContent, err := os.ReadFile("../../util/helm/testdata/external/external-secret.txt")
+	assert.NoError(t, err)
+
+	service := newService(t, "../../util/helm/testdata")
+
+	refSources := map[string]*argoappv1.RefTarget{}
+
+	refSources["$global"] = &argoappv1.RefTarget{
+		TargetRevision: "HEAD",
+	}
+
+	manifestRequest := &apiclient.ManifestRequest{
+		Repo: &argoappv1.Repository{},
+		ApplicationSource: &argoappv1.ApplicationSource{
+			Ref:            "$global",
+			Path:           "./redis",
+			TargetRevision: "HEAD",
+			Helm: &argoappv1.ApplicationSourceHelm{
+				ValueFiles: []string{"$global/redis/values-production.yaml"},
+				FileParameters: []argoappv1.HelmFileParameter{{
+					Name: "passwordContent",
+					Path: "$global/external/external-secret.txt",
+				}},
+			},
+		},
+		HasMultipleSources: true,
+		NoCache:            true,
+		RefSources:         refSources,
+	}
+
+	res, err := service.GenerateManifest(context.Background(), manifestRequest)
+	if err != nil {
+		t.Errorf("unexpected %s", err)
+	}
+
+	assert.NoError(t, err)
+	assert.Contains(t, res.Manifests[1], string(expectedFileContent), "Value should be provided via file parameters")
+}
+
 func TestFindResources(t *testing.T) {
 	testCases := []struct {
 		name          string
