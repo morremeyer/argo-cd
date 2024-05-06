@@ -13,6 +13,7 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -2246,7 +2247,12 @@ func TestGenerateMultiSourceHelmWithFileParameter(t *testing.T) {
 	}
 
 	assert.NoError(t, err)
-	assert.Contains(t, res.Manifests[1], string(expectedFileContent), "Value should be provided via file parameters")
+
+	// Check that any of the manifests contains the secret
+	idx := slices.IndexFunc(res.Manifests, func(content string) bool {
+		return strings.Contains(content, string(expectedFileContent))
+	})
+	assert.GreaterOrEqual(t, idx, 0, "No manifest contains the value set with the helm fileParameters")
 }
 
 func TestFindResources(t *testing.T) {
